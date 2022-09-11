@@ -1,0 +1,47 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - '**'
+    paths-ignore:
+      - 'README.md'
+      - 'LICENSE'
+  pull_request:
+    paths-ignore:
+      - 'README.md'
+      - 'LICENSE'
+
+jobs:
+  test:
+    name: Test
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: ^1.19
+
+      - name: Create test domain set file
+        run: |
+          echo "# shadowsocks-go domain set capacity hint 1 6 1 1 DSKR
+          domain:www.example.net
+          suffix:example.com
+          suffix:github.com
+          suffix:cube64128.xyz
+          suffix:api.ipify.org
+          suffix:api6.ipify.org
+          suffix:archlinux.org
+          keyword:dev
+          regexp:^adservice\.google\.([a-z]{2}|com?)(\.[a-z]{2})?$
+          " > test-domainset.txt
+
+      - name: Test
+        run: go test -v -benchmem -bench . ./...
