@@ -1,8 +1,13 @@
 package domainset
 
 import (
+	"bytes"
+	"io"
 	"os"
+	"strings"
 	"testing"
+
+	"github.com/database64128/shadowsocks-go/domainset"
 )
 
 const (
@@ -10,25 +15,20 @@ const (
 	shortDomain  = "localhost"
 	mediumDomain = "www.example.com"
 	longDomain   = "cant.come.up.with.a.long.domain.name"
-	testDS       = `
-# Test comment.
+	testDS       = `# shadowsocks-go domain set capacity hint 1 6 1 1 DSKR
 domain:www.example.net
 suffix:example.com
-suffix:youtube.com
-suffix:gen.xyz
+suffix:github.com
 suffix:cube64128.xyz
-suffix:dynmap.us
-suffix:us
-suffix:about.us
-keyword:org
+suffix:api.ipify.org
+suffix:api6.ipify.org
+suffix:archlinux.org
+keyword:dev
 regexp:^adservice\.google\.([a-z]{2}|com?)(\.[a-z]{2})?$
 `
 )
 
-var (
-	data        []byte
-	testDSBytes = []byte(testDS)
-)
+var data []byte
 
 func init() {
 	var err error
@@ -45,50 +45,71 @@ func testMatch(t *testing.T, ds DomainSet, domain string, expectedResult bool) {
 }
 
 func testDomainSet(t *testing.T, ds DomainSet) {
+	testMatch(t, ds, "net", false)
 	testMatch(t, ds, "example.net", false)
 	testMatch(t, ds, "www.example.net", true)
+	testMatch(t, ds, "wwww.example.net", false)
+	testMatch(t, ds, "test.www.example.net", false)
+	testMatch(t, ds, "com", false)
 	testMatch(t, ds, "example.com", true)
 	testMatch(t, ds, "www.example.com", true)
 	testMatch(t, ds, "gobyexample.com", false)
-	testMatch(t, ds, "example.org", true)
+	testMatch(t, ds, "example.org", false)
+	testMatch(t, ds, "github.com", true)
+	testMatch(t, ds, "api.github.com", true)
+	testMatch(t, ds, "raw.githubusercontent.com", false)
+	testMatch(t, ds, "github.blog", false)
+	testMatch(t, ds, "cube64128.xyz", true)
+	testMatch(t, ds, "www.cube64128.xyz", true)
+	testMatch(t, ds, "notcube64128.xyz", false)
+	testMatch(t, ds, "org", false)
+	testMatch(t, ds, "ipify.org", false)
+	testMatch(t, ds, "api.ipify.org", true)
+	testMatch(t, ds, "api6.ipify.org", true)
+	testMatch(t, ds, "api64.ipify.org", false)
+	testMatch(t, ds, "www.ipify.org", false)
+	testMatch(t, ds, "archlinux.org", true)
+	testMatch(t, ds, "aur.archlinux.org", true)
+	testMatch(t, ds, "wikipedia.org", false)
+	testMatch(t, ds, "dev", true)
+	testMatch(t, ds, "go.dev", true)
+	testMatch(t, ds, "drewdevault.com", true)
+	testMatch(t, ds, "developer.mozilla.org", true)
 	testMatch(t, ds, "adservice.google.com", true)
 }
 
 func TestDomainLinearSet(t *testing.T) {
-	ds, err := NewDomainLinearSet(testDSBytes)
+	r := strings.NewReader(testDS)
+	ds, err := DomainLinearSetFromText(r)
 	if err != nil {
 		t.Fatal(err)
 	}
 	testDomainSet(t, ds)
 }
 
-func TestDomainSuffixMap(t *testing.T) {
-	ds, err := NewDomainSuffixMap(testDSBytes)
+func TestDomainSuffixTrieR(t *testing.T) {
+	r := strings.NewReader(testDS)
+	ds, err := DomainSetSuffixTrieFromText(r, &DomainSuffixTrieR{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	testDomainSet(t, ds)
 }
 
-func TestDomainSuffixTrie(t *testing.T) {
-	ds, err := NewDomainSuffixTrie(testDSBytes)
-	if err != nil {
-		t.Fatal(err)
-	}
-	testDomainSet(t, ds)
-}
-
-func BenchmarkDomainLinearSetSetup(b *testing.B) {
+func benchmarkDomainSetSetup(b *testing.B, setup func(r io.Reader) (DomainSet, error)) {
+	r := bytes.NewReader(data)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := NewDomainLinearSet(data)
-		if err != nil {
+		if _, err := setup(r); err != nil {
 			b.Fatal(err)
 		}
+		r.Reset(data)
 	}
 }
 
-func BenchmarkDomainLinearSetMatch(b *testing.B) {
-	ds, err := NewDomainLinearSet(data)
+func benchmarkDomainSetMatch(b *testing.B, setup func(r io.Reader) (DomainSet, error)) {
+	r := bytes.NewReader(data)
+	ds, err := setup(r)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -109,98 +130,77 @@ func BenchmarkDomainLinearSetMatch(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			ds.Match(longDomain)
 		}
+	})
+}
+
+func BenchmarkDomainLinearSetSetup(b *testing.B) {
+	benchmarkDomainSetSetup(b, func(r io.Reader) (DomainSet, error) {
+		return DomainLinearSetFromText(r)
+	})
+}
+
+func BenchmarkDomainLinearSetMatch(b *testing.B) {
+	benchmarkDomainSetMatch(b, func(r io.Reader) (DomainSet, error) {
+		return DomainLinearSetFromText(r)
 	})
 }
 
 func BenchmarkDomainSuffixMapSetup(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		_, err := NewDomainSuffixMap(data)
-		if err != nil {
-			b.Fatal(err)
-		}
-	}
+	benchmarkDomainSetSetup(b, func(r io.Reader) (DomainSet, error) {
+		return domainset.DomainSetFromText(r)
+	})
 }
 
 func BenchmarkDomainSuffixMapMatch(b *testing.B) {
-	ds, err := NewDomainSuffixMap(data)
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	b.Run("short", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			ds.Match(shortDomain)
-		}
-	})
-
-	b.Run("medium", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			ds.Match(mediumDomain)
-		}
-	})
-
-	b.Run("long", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			ds.Match(longDomain)
-		}
+	benchmarkDomainSetMatch(b, func(r io.Reader) (DomainSet, error) {
+		return domainset.DomainSetFromText(r)
 	})
 }
 
-func BenchmarkDomainSuffixTrieSetup(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		_, err := NewDomainSuffixTrie(data)
-		if err != nil {
-			b.Fatal(err)
-		}
-	}
+func BenchmarkDomainSuffixTrieSetupIteration(b *testing.B) {
+	benchmarkDomainSetSetup(b, func(r io.Reader) (DomainSet, error) {
+		return DomainSetSuffixTrieFromText(r, &domainset.DomainSuffixTrie{})
+	})
 }
 
-func BenchmarkDomainSuffixTrieMatchRecursion(b *testing.B) {
-	ds, err := NewDomainSuffixTrie(data)
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	b.Run("short", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			ds.MatchR(shortDomain)
-		}
-	})
-
-	b.Run("medium", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			ds.MatchR(mediumDomain)
-		}
-	})
-
-	b.Run("long", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			ds.MatchR(longDomain)
-		}
+func BenchmarkDomainSuffixTrieSetupRecursion(b *testing.B) {
+	benchmarkDomainSetSetup(b, func(r io.Reader) (DomainSet, error) {
+		return DomainSetSuffixTrieFromText(r, &DomainSuffixTrieR{})
 	})
 }
 
 func BenchmarkDomainSuffixTrieMatchIteration(b *testing.B) {
-	ds, err := NewDomainSuffixTrie(data)
+	benchmarkDomainSetMatch(b, func(r io.Reader) (DomainSet, error) {
+		return DomainSetSuffixTrieFromText(r, &domainset.DomainSuffixTrie{})
+	})
+}
+
+func BenchmarkDomainSuffixTrieMatchRecursion(b *testing.B) {
+	benchmarkDomainSetMatch(b, func(r io.Reader) (DomainSet, error) {
+		return DomainSetSuffixTrieFromText(r, &DomainSuffixTrieR{})
+	})
+}
+
+func BenchmarkDomainSuffixTrieSetupIterationGob(b *testing.B) {
+	r := bytes.NewReader(data)
+	dsb, err := domainset.BuilderFromText(r)
 	if err != nil {
 		b.Fatal(err)
 	}
 
-	b.Run("short", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			ds.Match(shortDomain)
-		}
-	})
+	var buffer bytes.Buffer
+	if err := dsb.WriteGob(&buffer); err != nil {
+		b.Fatal(err)
+	}
+	buf := buffer.Bytes()
+	r.Reset(buf)
+	b.Logf("gob encoded size: %d", len(buf))
+	b.ResetTimer()
 
-	b.Run("medium", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			ds.Match(mediumDomain)
+	for i := 0; i < b.N; i++ {
+		if _, err := domainset.DomainSetFromGob(r); err != nil {
+			b.Fatal(err)
 		}
-	})
-
-	b.Run("long", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			ds.Match(longDomain)
-		}
-	})
+		r.Reset(buf)
+	}
 }
