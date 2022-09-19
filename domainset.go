@@ -1,23 +1,27 @@
 package domainset
 
 import (
-	"errors"
+	"io"
+
+	"github.com/database64128/shadowsocks-go/domainset"
 )
 
-const (
-	domainPrefix     = "domain:"
-	suffixPrefix     = "suffix:"
-	keywordPrefix    = "keyword:"
-	regexpPrefix     = "regexp:"
-	domainPrefixLen  = len(domainPrefix)
-	suffixPrefixLen  = len(suffixPrefix)
-	keywordPrefixLen = len(keywordPrefix)
-	regexpPrefixLen  = len(regexpPrefix)
-)
+func BuilderFromTextR(r io.Reader) (domainset.Builder, error) {
+	return domainset.BuilderFromTextFunc(
+		r,
+		domainset.NewDomainMapMatcher,
+		NewDomainSuffixTrieR,
+		domainset.NewKeywordLinearMatcher,
+		domainset.NewRegexpMatcherBuilder,
+	)
+}
 
-var errEmptyStream = errors.New("empty stream")
-
-// DomainSet is a rule set that can match domains.
-type DomainSet interface {
-	Match(domain string) bool
+func BuilderFromTextL(r io.Reader) (domainset.Builder, error) {
+	return domainset.BuilderFromTextFunc(
+		r,
+		domainset.NewDomainLinearMatcher,
+		domainset.NewSuffixLinearMatcher,
+		domainset.NewKeywordLinearMatcher,
+		domainset.NewRegexpMatcherBuilder,
+	)
 }

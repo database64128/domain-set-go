@@ -2,6 +2,6 @@ module github.com/database64128/domain-set-go
 
 go 1.19
 
-require golang.org/x/exp v0.0.0-20220916125017-b168a2c6b86b
+require golang.org/x/exp v0.0.0-20220916125017-b168a2c6b86b // indirect
 
-require github.com/database64128/shadowsocks-go v1.2.0
+require github.com/database64128/shadowsocks-go v1.2.1-0.20220919113709-4651c8a5a8e4

@@ -1,72 +1,8 @@
 package domainset
 
 import (
-	"bufio"
-	"fmt"
-	"io"
-	"regexp"
-	"strings"
-
 	"github.com/database64128/shadowsocks-go/domainset"
 )
-
-type DomainSuffixTrie interface {
-	Insert(domain string)
-	Match(domain string) bool
-}
-
-func DomainSetSuffixTrieFromText(r io.Reader, dst DomainSuffixTrie) (*domainset.DomainSet, error) {
-	s := bufio.NewScanner(r)
-	if !s.Scan() {
-		return nil, errEmptyStream
-	}
-	line := s.Text()
-
-	dskr, found, err := parseCapacityHint(line)
-	if err != nil {
-		return nil, err
-	}
-	if found {
-		if !s.Scan() {
-			return nil, errEmptyStream
-		}
-		line = s.Text()
-	}
-
-	ds := domainset.DomainSet{
-		Domains:  make(map[string]struct{}, dskr[0]),
-		Suffixes: dst,
-		Keywords: make([]string, 0, dskr[2]),
-		Regexps:  make([]*regexp.Regexp, 0, dskr[3]),
-	}
-
-	for {
-		switch {
-		case line == "" || strings.IndexByte(line, '#') == 0:
-		case strings.HasPrefix(line, domainPrefix):
-			ds.Domains[line[domainPrefixLen:]] = struct{}{}
-		case strings.HasPrefix(line, suffixPrefix):
-			dst.Insert(line[suffixPrefixLen:])
-		case strings.HasPrefix(line, keywordPrefix):
-			ds.Keywords = append(ds.Keywords, line[keywordPrefixLen:])
-		case strings.HasPrefix(line, regexpPrefix):
-			regexp, err := regexp.Compile(line[regexpPrefixLen:])
-			if err != nil {
-				return nil, err
-			}
-			ds.Regexps = append(ds.Regexps, regexp)
-		default:
-			return nil, fmt.Errorf("invalid line: %s", line)
-		}
-
-		if !s.Scan() {
-			break
-		}
-		line = s.Text()
-	}
-
-	return &ds, nil
-}
 
 func InsertR(dt *domainset.DomainSuffixTrie, domain string) {
 	for i := len(domain) - 1; i >= 0; i-- {
@@ -116,13 +52,13 @@ func InsertR(dt *domainset.DomainSuffixTrie, domain string) {
 }
 
 func MatchR(dt *domainset.DomainSuffixTrie, domain string) bool {
+	if dt.Children == nil {
+		return false
+	}
+
 	for i := len(domain) - 1; i >= 0; i-- {
 		if domain[i] != '.' {
 			continue
-		}
-
-		if dt.Children == nil {
-			return false
 		}
 
 		ndt, ok := dt.Children[domain[i+1:]]
@@ -152,4 +88,28 @@ func (dstr *DomainSuffixTrieR) Insert(domain string) {
 
 func (dstr *DomainSuffixTrieR) Match(domain string) bool {
 	return MatchR((*domainset.DomainSuffixTrie)(dstr), domain)
+}
+
+func (dstr *DomainSuffixTrieR) Rules() []string {
+	return (*domainset.DomainSuffixTrie)(dstr).Rules()
+}
+
+func (dstr *DomainSuffixTrieR) MatcherCount() int {
+	return (*domainset.DomainSuffixTrie)(dstr).MatcherCount()
+}
+
+func (dstr *DomainSuffixTrieR) AppendTo(matchers []domainset.Matcher) ([]domainset.Matcher, error) {
+	return (*domainset.DomainSuffixTrie)(dstr).AppendTo(matchers)
+}
+
+func NewDomainSuffixTrieR(capacity int) domainset.MatcherBuilder {
+	return &DomainSuffixTrieR{}
+}
+
+func DomainSuffixTrieRFromSlice(suffixes []string) *DomainSuffixTrieR {
+	var dstr DomainSuffixTrieR
+	for _, s := range suffixes {
+		dstr.Insert(s)
+	}
+	return &dstr
 }

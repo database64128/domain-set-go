@@ -38,13 +38,13 @@ func init() {
 	}
 }
 
-func testMatch(t *testing.T, ds DomainSet, domain string, expectedResult bool) {
+func testMatch(t *testing.T, ds domainset.DomainSet, domain string, expectedResult bool) {
 	if ds.Match(domain) != expectedResult {
 		t.Errorf("%s should return %v", domain, expectedResult)
 	}
 }
 
-func testDomainSet(t *testing.T, ds DomainSet) {
+func testDomainSet(t *testing.T, ds domainset.DomainSet) {
 	testMatch(t, ds, "net", false)
 	testMatch(t, ds, "example.net", false)
 	testMatch(t, ds, "www.example.net", true)
@@ -78,25 +78,20 @@ func testDomainSet(t *testing.T, ds DomainSet) {
 	testMatch(t, ds, "adservice.google.com", true)
 }
 
-func TestDomainLinearSet(t *testing.T) {
-	r := strings.NewReader(testDS)
-	ds, err := DomainLinearSetFromText(r)
-	if err != nil {
-		t.Fatal(err)
-	}
-	testDomainSet(t, ds)
-}
-
 func TestDomainSuffixTrieR(t *testing.T) {
 	r := strings.NewReader(testDS)
-	ds, err := DomainSetSuffixTrieFromText(r, &DomainSuffixTrieR{})
+	dsb, err := BuilderFromTextR(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ds, err := dsb.DomainSet()
 	if err != nil {
 		t.Fatal(err)
 	}
 	testDomainSet(t, ds)
 }
 
-func benchmarkDomainSetSetup(b *testing.B, setup func(r io.Reader) (DomainSet, error)) {
+func benchmarkDomainSetSetup(b *testing.B, setup func(r io.Reader) (domainset.Builder, error)) {
 	r := bytes.NewReader(data)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -107,9 +102,13 @@ func benchmarkDomainSetSetup(b *testing.B, setup func(r io.Reader) (DomainSet, e
 	}
 }
 
-func benchmarkDomainSetMatch(b *testing.B, setup func(r io.Reader) (DomainSet, error)) {
+func benchmarkDomainSetMatch(b *testing.B, setup func(r io.Reader) (domainset.Builder, error)) {
 	r := bytes.NewReader(data)
-	ds, err := setup(r)
+	dsb, err := setup(r)
+	if err != nil {
+		b.Fatal(err)
+	}
+	ds, err := dsb.DomainSet()
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -134,51 +133,35 @@ func benchmarkDomainSetMatch(b *testing.B, setup func(r io.Reader) (DomainSet, e
 }
 
 func BenchmarkDomainLinearSetSetup(b *testing.B) {
-	benchmarkDomainSetSetup(b, func(r io.Reader) (DomainSet, error) {
-		return DomainLinearSetFromText(r)
-	})
+	benchmarkDomainSetSetup(b, BuilderFromTextL)
 }
 
 func BenchmarkDomainLinearSetMatch(b *testing.B) {
-	benchmarkDomainSetMatch(b, func(r io.Reader) (DomainSet, error) {
-		return DomainLinearSetFromText(r)
-	})
+	benchmarkDomainSetMatch(b, BuilderFromTextL)
 }
 
 func BenchmarkDomainSuffixMapSetup(b *testing.B) {
-	benchmarkDomainSetSetup(b, func(r io.Reader) (DomainSet, error) {
-		return domainset.DomainSetFromText(r)
-	})
+	benchmarkDomainSetSetup(b, domainset.BuilderFromTextFast)
 }
 
 func BenchmarkDomainSuffixMapMatch(b *testing.B) {
-	benchmarkDomainSetMatch(b, func(r io.Reader) (DomainSet, error) {
-		return domainset.DomainSetFromText(r)
-	})
+	benchmarkDomainSetMatch(b, domainset.BuilderFromTextFast)
 }
 
 func BenchmarkDomainSuffixTrieSetupIteration(b *testing.B) {
-	benchmarkDomainSetSetup(b, func(r io.Reader) (DomainSet, error) {
-		return DomainSetSuffixTrieFromText(r, &domainset.DomainSuffixTrie{})
-	})
+	benchmarkDomainSetSetup(b, domainset.BuilderFromText)
 }
 
 func BenchmarkDomainSuffixTrieSetupRecursion(b *testing.B) {
-	benchmarkDomainSetSetup(b, func(r io.Reader) (DomainSet, error) {
-		return DomainSetSuffixTrieFromText(r, &DomainSuffixTrieR{})
-	})
+	benchmarkDomainSetSetup(b, BuilderFromTextR)
 }
 
 func BenchmarkDomainSuffixTrieMatchIteration(b *testing.B) {
-	benchmarkDomainSetMatch(b, func(r io.Reader) (DomainSet, error) {
-		return DomainSetSuffixTrieFromText(r, &domainset.DomainSuffixTrie{})
-	})
+	benchmarkDomainSetMatch(b, domainset.BuilderFromText)
 }
 
 func BenchmarkDomainSuffixTrieMatchRecursion(b *testing.B) {
-	benchmarkDomainSetMatch(b, func(r io.Reader) (DomainSet, error) {
-		return DomainSetSuffixTrieFromText(r, &DomainSuffixTrieR{})
-	})
+	benchmarkDomainSetMatch(b, BuilderFromTextR)
 }
 
 func BenchmarkDomainSuffixTrieSetupIterationGob(b *testing.B) {
@@ -198,7 +181,7 @@ func BenchmarkDomainSuffixTrieSetupIterationGob(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		if _, err := domainset.DomainSetFromGob(r); err != nil {
+		if _, err := domainset.BuilderFromGob(r); err != nil {
 			b.Fatal(err)
 		}
 		r.Reset(buf)
