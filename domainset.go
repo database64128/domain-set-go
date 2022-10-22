@@ -1,14 +1,12 @@
 package domainset
 
 import (
-	"io"
-
 	"github.com/database64128/shadowsocks-go/domainset"
 )
 
-func BuilderFromTextR(r io.Reader) (domainset.Builder, error) {
+func BuilderFromTextR(text string) (domainset.Builder, error) {
 	return domainset.BuilderFromTextFunc(
-		r,
+		text,
 		domainset.NewDomainMapMatcher,
 		NewDomainSuffixTrieR,
 		domainset.NewKeywordLinearMatcher,
@@ -16,9 +14,9 @@ func BuilderFromTextR(r io.Reader) (domainset.Builder, error) {
 	)
 }
 
-func BuilderFromTextL(r io.Reader) (domainset.Builder, error) {
+func BuilderFromTextL(text string) (domainset.Builder, error) {
 	return domainset.BuilderFromTextFunc(
-		r,
+		text,
 		domainset.NewDomainLinearMatcher,
 		domainset.NewSuffixLinearMatcher,
 		domainset.NewKeywordLinearMatcher,

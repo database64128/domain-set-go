@@ -2,12 +2,10 @@ package domainset
 
 import (
 	"bytes"
-	"io"
-	"os"
-	"strings"
 	"testing"
 
 	"github.com/database64128/shadowsocks-go/domainset"
+	"github.com/database64128/shadowsocks-go/mmap"
 )
 
 const (
@@ -28,14 +26,16 @@ regexp:^adservice\.google\.([a-z]{2}|com?)(\.[a-z]{2})?$
 `
 )
 
-var data []byte
+var data string
 
-func init() {
+func TestMain(m *testing.M) {
 	var err error
-	data, err = os.ReadFile(filename)
+	data, err = mmap.ReadFile[string](filename)
 	if err != nil {
 		panic(err)
 	}
+	m.Run()
+	mmap.Unmap(data)
 }
 
 func testMatch(t *testing.T, ds domainset.DomainSet, domain string, expectedResult bool) {
@@ -79,8 +79,7 @@ func testDomainSet(t *testing.T, ds domainset.DomainSet) {
 }
 
 func TestDomainSuffixTrieR(t *testing.T) {
-	r := strings.NewReader(testDS)
-	dsb, err := BuilderFromTextR(r)
+	dsb, err := BuilderFromTextR(testDS)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,20 +90,16 @@ func TestDomainSuffixTrieR(t *testing.T) {
 	testDomainSet(t, ds)
 }
 
-func benchmarkDomainSetSetup(b *testing.B, setup func(r io.Reader) (domainset.Builder, error)) {
-	r := bytes.NewReader(data)
-	b.ResetTimer()
+func benchmarkDomainSetSetup(b *testing.B, setup func(string) (domainset.Builder, error)) {
 	for i := 0; i < b.N; i++ {
-		if _, err := setup(r); err != nil {
+		if _, err := setup(data); err != nil {
 			b.Fatal(err)
 		}
-		r.Reset(data)
 	}
 }
 
-func benchmarkDomainSetMatch(b *testing.B, setup func(r io.Reader) (domainset.Builder, error)) {
-	r := bytes.NewReader(data)
-	dsb, err := setup(r)
+func benchmarkDomainSetMatch(b *testing.B, setup func(string) (domainset.Builder, error)) {
+	dsb, err := setup(data)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -165,8 +160,7 @@ func BenchmarkDomainSuffixTrieMatchRecursion(b *testing.B) {
 }
 
 func BenchmarkDomainSuffixTrieSetupIterationGob(b *testing.B) {
-	r := bytes.NewReader(data)
-	dsb, err := domainset.BuilderFromText(r)
+	dsb, err := domainset.BuilderFromText(data)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -176,7 +170,7 @@ func BenchmarkDomainSuffixTrieSetupIterationGob(b *testing.B) {
 		b.Fatal(err)
 	}
 	buf := buffer.Bytes()
-	r.Reset(buf)
+	r := bytes.NewReader(buf)
 	b.Logf("gob encoded size: %d", len(buf))
 	b.ResetTimer()
 
