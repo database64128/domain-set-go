@@ -1,6 +1,6 @@
 module github.com/database64128/domain-set-go
 
-go 1.22.1
+go 1.22.2
 
 require golang.org/x/sys v0.17.0 // indirect
 
