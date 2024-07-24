@@ -29,13 +29,16 @@ regexp:^adservice\.google\.([a-z]{2}|com?)(\.[a-z]{2})?$
 var data string
 
 func TestMain(m *testing.M) {
-	var err error
-	data, err = mmap.ReadFile[string](filename)
+	var (
+		close func() error
+		err   error
+	)
+	data, close, err = mmap.ReadFile[string](filename)
 	if err != nil {
 		panic(err)
 	}
+	defer close()
 	m.Run()
-	mmap.Unmap(data)
 }
 
 func testMatch(t *testing.T, ds domainset.DomainSet, domain string, expectedResult bool) {
