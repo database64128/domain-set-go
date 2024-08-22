@@ -86,7 +86,7 @@ func TestDomainSuffixTrieR(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ds, err := dsb.DomainSet()
+	ds, err := DomainSetFromBuilderPreserveType(dsb)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,7 +106,7 @@ func benchmarkDomainSetMatch(b *testing.B, setup func(string) (domainset.Builder
 	if err != nil {
 		b.Fatal(err)
 	}
-	ds, err := dsb.DomainSet()
+	ds, err := DomainSetFromBuilderPreserveType(dsb)
 	if err != nil {
 		b.Fatal(err)
 	}
