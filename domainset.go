@@ -8,7 +8,7 @@ func BuilderFromTextR(text string) (domainset.Builder, error) {
 	return domainset.BuilderFromTextFunc(
 		text,
 		domainset.NewDomainMapMatcher,
-		NewDomainSuffixTrieR,
+		NewDomainSuffixTrieRMatcherBuilder,
 		domainset.NewKeywordLinearMatcher,
 		domainset.NewRegexpMatcherBuilder,
 	)

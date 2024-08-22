@@ -1,115 +1,74 @@
 package domainset
 
 import (
+	"strings"
+
 	"github.com/database64128/shadowsocks-go/domainset"
 )
 
-func InsertR(dt *domainset.DomainSuffixTrie, domain string) {
-	for i := len(domain) - 1; i >= 0; i-- {
-		if domain[i] != '.' {
-			continue
-		}
-
-		part := domain[i+1:]
-		var ndt *domainset.DomainSuffixTrie
-		if dt.Children == nil {
-			ndt = &domainset.DomainSuffixTrie{}
-			dt.Children = map[string]*domainset.DomainSuffixTrie{
-				part: ndt,
-			}
-		} else {
-			var ok bool
-			ndt, ok = dt.Children[part]
-			switch {
-			case !ok:
-				ndt = &domainset.DomainSuffixTrie{}
-				dt.Children[part] = ndt
-			case ndt.Included:
-				return
-			}
-		}
-		InsertR(ndt, domain[:i])
+func InsertR(dt domainset.DomainSuffixTrie, domain string) {
+	dotIndex := strings.LastIndexByte(domain, '.')
+	if dotIndex == -1 {
+		// Make the final (from right to left) part a leaf node.
+		dt.Children[domain] = domainset.DomainSuffixTrie{}
 		return
 	}
 
-	if dt.Children == nil {
-		dt.Children = map[string]*domainset.DomainSuffixTrie{
-			domain: {
-				Included: true,
-			},
+	part := domain[dotIndex+1:]
+
+	ndt, ok := dt.Children[part]
+	switch {
+	case !ok:
+		ndt = domainset.DomainSuffixTrie{
+			Children: make(map[string]domainset.DomainSuffixTrie, 1),
 		}
-	} else {
-		ndt, ok := dt.Children[domain]
-		if !ok {
-			dt.Children[domain] = &domainset.DomainSuffixTrie{
-				Included: true,
-			}
-		} else {
-			ndt.Included = true
-			ndt.Children = nil
-		}
+		dt.Children[part] = ndt
+	case ndt.Children == nil:
+		return
 	}
+
+	InsertR(ndt, domain[:dotIndex])
 }
 
-func MatchR(dt *domainset.DomainSuffixTrie, domain string) bool {
-	if dt.Children == nil {
-		return false
-	}
-
-	for i := len(domain) - 1; i >= 0; i-- {
-		if domain[i] != '.' {
-			continue
-		}
-
-		ndt, ok := dt.Children[domain[i+1:]]
-		if !ok {
-			return false
-		}
-		if ndt.Included {
-			return true
-		}
-		return MatchR(ndt, domain[:i])
-	}
-
-	ndt, ok := dt.Children[domain]
+func MatchR(dt domainset.DomainSuffixTrie, domain string) bool {
+	dotIndex := strings.LastIndexByte(domain, '.')
+	part := domain[dotIndex+1:] // If dotIndex == -1, part will be domain.
+	ndt, ok := dt.Children[part]
 	if !ok {
 		return false
 	}
-	return ndt.Included
+	if ndt.Children == nil {
+		return true
+	}
+	if dotIndex == -1 {
+		return false
+	}
+	return MatchR(ndt, domain[:dotIndex])
 }
 
-// DomainSuffixTrieR is the same as DomainSuffixTrie,
+// DomainSuffixTrieR is like [domainset.DomainSuffixTrie],
 // but uses recursive algorithms for insertion and search.
-type DomainSuffixTrieR domainset.DomainSuffixTrie
-
-func (dstr *DomainSuffixTrieR) Insert(domain string) {
-	InsertR((*domainset.DomainSuffixTrie)(dstr), domain)
+type DomainSuffixTrieR struct {
+	domainset.DomainSuffixTrie
 }
 
-func (dstr *DomainSuffixTrieR) Match(domain string) bool {
-	return MatchR((*domainset.DomainSuffixTrie)(dstr), domain)
+func (dstr DomainSuffixTrieR) Insert(domain string) {
+	InsertR(dstr.DomainSuffixTrie, domain)
 }
 
-func (dstr *DomainSuffixTrieR) Rules() []string {
-	return (*domainset.DomainSuffixTrie)(dstr).Rules()
-}
-
-func (dstr *DomainSuffixTrieR) MatcherCount() int {
-	return (*domainset.DomainSuffixTrie)(dstr).MatcherCount()
+func (dstr DomainSuffixTrieR) Match(domain string) bool {
+	return MatchR(dstr.DomainSuffixTrie, domain)
 }
 
 func (dstr *DomainSuffixTrieR) AppendTo(matchers []domainset.Matcher) ([]domainset.Matcher, error) {
-	return (*domainset.DomainSuffixTrie)(dstr).AppendTo(matchers)
-}
-
-func NewDomainSuffixTrieR(capacity int) domainset.MatcherBuilder {
-	return &DomainSuffixTrieR{}
-}
-
-func DomainSuffixTrieRFromSlice(suffixes []string) *DomainSuffixTrieR {
-	var dstr DomainSuffixTrieR
-	for _, s := range suffixes {
-		dstr.Insert(s)
+	if len(dstr.DomainSuffixTrie.Children) == 0 {
+		return matchers, nil
 	}
-	return &dstr
+	return append(matchers, dstr), nil
+}
+
+func NewDomainSuffixTrieRMatcherBuilder(_ int) domainset.MatcherBuilder {
+	return &DomainSuffixTrieR{
+		DomainSuffixTrie: domainset.NewDomainSuffixTrie(),
+	}
 }
