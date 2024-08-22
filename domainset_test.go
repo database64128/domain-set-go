@@ -94,7 +94,7 @@ func TestDomainSuffixTrieR(t *testing.T) {
 }
 
 func benchmarkDomainSetSetup(b *testing.B, setup func(string) (domainset.Builder, error)) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if _, err := setup(data); err != nil {
 			b.Fatal(err)
 		}
@@ -112,20 +112,20 @@ func benchmarkDomainSetMatch(b *testing.B, setup func(string) (domainset.Builder
 	}
 
 	b.Run("short", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			ds.Match(shortDomain)
+		for range b.N {
+			_ = ds.Match(shortDomain)
 		}
 	})
 
 	b.Run("medium", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			ds.Match(mediumDomain)
+		for range b.N {
+			_ = ds.Match(mediumDomain)
 		}
 	})
 
 	b.Run("long", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			ds.Match(longDomain)
+		for range b.N {
+			_ = ds.Match(longDomain)
 		}
 	})
 }
@@ -177,7 +177,7 @@ func BenchmarkDomainSuffixTrieSetupIterationGob(b *testing.B) {
 	b.Logf("gob encoded size: %d", len(buf))
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if _, err := domainset.BuilderFromGob(r); err != nil {
 			b.Fatal(err)
 		}
