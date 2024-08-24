@@ -42,6 +42,7 @@ func TestMain(m *testing.M) {
 }
 
 func testMatch(t *testing.T, ds domainset.DomainSet, domain string, expectedResult bool) {
+	t.Helper()
 	if ds.Match(domain) != expectedResult {
 		t.Errorf("%s should return %v", domain, expectedResult)
 	}
@@ -111,55 +112,62 @@ func benchmarkDomainSetMatch(b *testing.B, setup func(string) (domainset.Builder
 		b.Fatal(err)
 	}
 
-	b.Run("short", func(b *testing.B) {
+	b.Run("Short", func(b *testing.B) {
 		for range b.N {
 			_ = ds.Match(shortDomain)
 		}
 	})
 
-	b.Run("medium", func(b *testing.B) {
+	b.Run("Medium", func(b *testing.B) {
 		for range b.N {
 			_ = ds.Match(mediumDomain)
 		}
 	})
 
-	b.Run("long", func(b *testing.B) {
+	b.Run("Long", func(b *testing.B) {
 		for range b.N {
 			_ = ds.Match(longDomain)
 		}
 	})
 }
 
-func BenchmarkDomainLinearSetSetup(b *testing.B) {
-	benchmarkDomainSetSetup(b, BuilderFromTextL)
+func BenchmarkDomainSetSetup(b *testing.B) {
+	for _, c := range []struct {
+		name  string
+		setup func(string) (domainset.Builder, error)
+	}{
+		{"Linear", BuilderFromTextLinear},
+		{"LinearClone", BuilderFromTextLinearClone},
+		{"LinearBulkClone", BuilderFromTextLinearBulkClone},
+		{"LinearIter", BuilderFromTextLinearIter},
+		{"SuffixMap", domainset.BuilderFromTextFast},
+		{"SuffixMapClone", domainset.BuilderFromTextFastClone},
+		{"SuffixMapBulkClone", BuilderFromTextFastBulkClone},
+		{"SuffixTrieIteration", domainset.BuilderFromText},
+		{"SuffixTrieIterationClone", domainset.BuilderFromTextClone},
+		{"SuffixTrieIterationBulkClone", BuilderFromTextBulkClone},
+		{"SuffixTrieRecursion", BuilderFromTextR},
+	} {
+		b.Run(c.name, func(b *testing.B) {
+			benchmarkDomainSetSetup(b, c.setup)
+		})
+	}
 }
 
-func BenchmarkDomainLinearSetMatch(b *testing.B) {
-	benchmarkDomainSetMatch(b, BuilderFromTextL)
-}
-
-func BenchmarkDomainSuffixMapSetup(b *testing.B) {
-	benchmarkDomainSetSetup(b, domainset.BuilderFromTextFast)
-}
-
-func BenchmarkDomainSuffixMapMatch(b *testing.B) {
-	benchmarkDomainSetMatch(b, domainset.BuilderFromTextFast)
-}
-
-func BenchmarkDomainSuffixTrieSetupIteration(b *testing.B) {
-	benchmarkDomainSetSetup(b, domainset.BuilderFromText)
-}
-
-func BenchmarkDomainSuffixTrieSetupRecursion(b *testing.B) {
-	benchmarkDomainSetSetup(b, BuilderFromTextR)
-}
-
-func BenchmarkDomainSuffixTrieMatchIteration(b *testing.B) {
-	benchmarkDomainSetMatch(b, domainset.BuilderFromText)
-}
-
-func BenchmarkDomainSuffixTrieMatchRecursion(b *testing.B) {
-	benchmarkDomainSetMatch(b, BuilderFromTextR)
+func BenchmarkDomainSetMatch(b *testing.B) {
+	for _, c := range []struct {
+		name  string
+		setup func(string) (domainset.Builder, error)
+	}{
+		{"Linear", BuilderFromTextLinear},
+		{"SuffixMap", domainset.BuilderFromTextFast},
+		{"SuffixTrieIteration", domainset.BuilderFromText},
+		{"SuffixTrieRecursion", BuilderFromTextR},
+	} {
+		b.Run(c.name, func(b *testing.B) {
+			benchmarkDomainSetMatch(b, c.setup)
+		})
+	}
 }
 
 func BenchmarkDomainSuffixTrieSetupIterationGob(b *testing.B) {
