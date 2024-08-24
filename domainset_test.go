@@ -2,7 +2,9 @@ package domainset
 
 import (
 	"bytes"
+	"os"
 	"testing"
+	"unsafe"
 
 	"github.com/database64128/shadowsocks-go/domainset"
 	"github.com/database64128/shadowsocks-go/mmap"
@@ -167,6 +169,33 @@ func BenchmarkDomainSetMatch(b *testing.B) {
 		b.Run(c.name, func(b *testing.B) {
 			benchmarkDomainSetMatch(b, c.setup)
 		})
+	}
+}
+
+func BenchmarkDomainSuffixTrieSetupIterationTextMmapBulkClone(b *testing.B) {
+	for range b.N {
+		data, close, err := mmap.ReadFile[string](filename)
+		if err != nil {
+			b.Fatal(err)
+		}
+		defer close()
+
+		if _, err := BuilderFromTextBulkClone(data); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkDomainSuffixTrieSetupIterationTextReadAll(b *testing.B) {
+	for range b.N {
+		data, err := os.ReadFile(filename)
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		if _, err := domainset.BuilderFromText(unsafe.String(unsafe.SliceData(data), len(data))); err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 
