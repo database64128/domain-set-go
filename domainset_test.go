@@ -142,11 +142,11 @@ func BenchmarkDomainSetSetup(b *testing.B) {
 		{"LinearClone", BuilderFromTextLinearClone},
 		{"LinearBulkClone", BuilderFromTextLinearBulkClone},
 		{"LinearIter", BuilderFromTextLinearIter},
-		{"SuffixMap", domainset.BuilderFromTextFast},
-		{"SuffixMapClone", domainset.BuilderFromTextFastClone},
+		{"SuffixMap", BuilderFromTextFast},
+		{"SuffixMapClone", BuilderFromTextFastClone},
 		{"SuffixMapBulkClone", BuilderFromTextFastBulkClone},
 		{"SuffixTrieIteration", domainset.BuilderFromText},
-		{"SuffixTrieIterationClone", domainset.BuilderFromTextClone},
+		{"SuffixTrieIterationClone", BuilderFromTextClone},
 		{"SuffixTrieIterationBulkClone", BuilderFromTextBulkClone},
 		{"SuffixTrieRecursion", BuilderFromTextR},
 	} {
@@ -162,7 +162,7 @@ func BenchmarkDomainSetMatch(b *testing.B) {
 		setup func(string) (domainset.Builder, error)
 	}{
 		{"Linear", BuilderFromTextLinear},
-		{"SuffixMap", domainset.BuilderFromTextFast},
+		{"SuffixMap", BuilderFromTextFast},
 		{"SuffixTrieIteration", domainset.BuilderFromText},
 		{"SuffixTrieRecursion", BuilderFromTextR},
 	} {

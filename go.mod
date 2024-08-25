@@ -4,4 +4,4 @@ go 1.23.0
 
 require golang.org/x/sys v0.24.0 // indirect
 
-require github.com/database64128/shadowsocks-go v1.11.1-0.20240824051810-16bd867ca063
+require github.com/database64128/shadowsocks-go v1.11.1-0.20240825104831-cc29c1fb99c8
