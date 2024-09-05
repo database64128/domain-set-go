@@ -1,4 +1,4 @@
-github.com/database64128/shadowsocks-go v1.11.1-0.20240904153323-c8d1287ad8fb h1:h+TO35ebZB63DOPywEaH7yZlex9VFXD4JIA3ELs/pSM=
-github.com/database64128/shadowsocks-go v1.11.1-0.20240904153323-c8d1287ad8fb/go.mod h1:dqjB7ncydn1Y/fR3cvKB3TDw9qKPv/uv4tEOwt72Sew=
+github.com/database64128/shadowsocks-go v1.11.1-0.20240905184732-4f8cad46b00c h1:08vf+P/3olYl9/81p9LG5YJiomK1JvpvS0IuhlZ3rb4=
+github.com/database64128/shadowsocks-go v1.11.1-0.20240905184732-4f8cad46b00c/go.mod h1:iDKE0xT/DVeh2wHJtXdI5wF9QKtIJXf7mxlPObchkZA=
 golang.org/x/sys v0.25.0 h1:r+8e+loiHxRqhXVl6ML1nO3l1+oFoWbnlu2Ehimmi34=
 golang.org/x/sys v0.25.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
