@@ -97,7 +97,7 @@ func TestDomainSuffixTrieR(t *testing.T) {
 }
 
 func benchmarkDomainSetSetup(b *testing.B, setup func(string) (domainset.Builder, error)) {
-	for range b.N {
+	for b.Loop() {
 		if _, err := setup(data); err != nil {
 			b.Fatal(err)
 		}
@@ -115,19 +115,19 @@ func benchmarkDomainSetMatch(b *testing.B, setup func(string) (domainset.Builder
 	}
 
 	b.Run("Short", func(b *testing.B) {
-		for range b.N {
+		for b.Loop() {
 			_ = ds.Match(shortDomain)
 		}
 	})
 
 	b.Run("Medium", func(b *testing.B) {
-		for range b.N {
+		for b.Loop() {
 			_ = ds.Match(mediumDomain)
 		}
 	})
 
 	b.Run("Long", func(b *testing.B) {
-		for range b.N {
+		for b.Loop() {
 			_ = ds.Match(longDomain)
 		}
 	})
@@ -173,7 +173,7 @@ func BenchmarkDomainSetMatch(b *testing.B) {
 }
 
 func BenchmarkDomainSuffixTrieSetupIterationTextMmapBulkClone(b *testing.B) {
-	for range b.N {
+	for b.Loop() {
 		data, close, err := mmap.ReadFile[string](filename)
 		if err != nil {
 			b.Fatal(err)
@@ -187,7 +187,7 @@ func BenchmarkDomainSuffixTrieSetupIterationTextMmapBulkClone(b *testing.B) {
 }
 
 func BenchmarkDomainSuffixTrieSetupIterationTextReadAll(b *testing.B) {
-	for range b.N {
+	for b.Loop() {
 		data, err := os.ReadFile(filename)
 		if err != nil {
 			b.Fatal(err)
@@ -212,9 +212,8 @@ func BenchmarkDomainSuffixTrieSetupIterationGob(b *testing.B) {
 	buf := buffer.Bytes()
 	r := bytes.NewReader(buf)
 	b.Logf("gob encoded size: %d", len(buf))
-	b.ResetTimer()
 
-	for range b.N {
+	for b.Loop() {
 		if _, err := domainset.BuilderFromGob(r); err != nil {
 			b.Fatal(err)
 		}
